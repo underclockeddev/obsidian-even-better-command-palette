@@ -364,6 +364,15 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
 
         const icon = 'cross';
 
+        // Add category icon directly on the item element, before suggestion-content
+        if (match.category) {
+            const iconEl = el.createEl('span', {
+                cls: `suggestion-category-icon category-${match.category}`,
+            });
+            setIcon(iconEl, match.category === 'command' ? 'terminal'
+                : match.category === 'file' ? 'document' : 'hashtag', 16);
+        }
+
         const suggestionContent = el.createEl('span', 'suggestion-content');
         const suggestionAux = el.createEl('span', 'suggestion-aux');
 

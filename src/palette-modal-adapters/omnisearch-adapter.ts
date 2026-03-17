@@ -1,4 +1,4 @@
-import { Instruction, setIcon } from 'obsidian';
+import { Instruction } from 'obsidian';
 import {
     generateHotKeyText,
     OrderedSet,
@@ -9,12 +9,6 @@ import { ActionType } from 'src/utils/constants';
 import BetterCommandPaletteCommandAdapter from './command-adapter';
 import BetterCommandPaletteFileAdapter from './file-adapter';
 import BetterCommandPaletteTagAdapter from './tag-adapter';
-
-const CATEGORY_ICONS: Record<MatchCategory, string> = {
-    command: 'terminal',
-    file: 'document',
-    tag: 'hashtag',
-};
 
 export default class BetterCommandPaletteOmnisearchAdapter extends SuggestModalAdapter {
     titleText: string;
@@ -195,25 +189,12 @@ export default class BetterCommandPaletteOmnisearchAdapter extends SuggestModalA
     }
 
     renderSuggestion(match: Match, content: HTMLElement, aux: HTMLElement): void {
-        // Add category icon on the left edge
-        if (match.category) {
-            const iconEl = content.createEl('span', {
-                cls: `suggestion-category-icon category-${match.category}`,
-            });
-            setIcon(iconEl, CATEGORY_ICONS[match.category], 13);
-        }
-
-        // Wrap sub-adapter content so icon stays left and text fills remaining space
-        const innerContent = content.createEl('div', {
-            cls: 'suggestion-content-inner',
-        });
-
         // Delegate to the appropriate sub-adapter for type-specific rendering
         const adapter = this.getAdapterForMatch(match);
         if (adapter) {
-            adapter.renderSuggestion(match, innerContent, aux);
+            adapter.renderSuggestion(match, content, aux);
         } else {
-            innerContent.createEl('span', {
+            content.createEl('span', {
                 cls: 'suggestion-title',
                 text: match.text,
             });
