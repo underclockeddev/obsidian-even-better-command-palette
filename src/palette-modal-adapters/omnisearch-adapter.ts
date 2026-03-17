@@ -203,12 +203,17 @@ export default class BetterCommandPaletteOmnisearchAdapter extends SuggestModalA
             setIcon(iconEl, CATEGORY_ICONS[match.category], 13);
         }
 
+        // Wrap sub-adapter content so icon stays left and text fills remaining space
+        const innerContent = content.createEl('div', {
+            cls: 'suggestion-content-inner',
+        });
+
         // Delegate to the appropriate sub-adapter for type-specific rendering
         const adapter = this.getAdapterForMatch(match);
         if (adapter) {
-            adapter.renderSuggestion(match, content, aux);
+            adapter.renderSuggestion(match, innerContent, aux);
         } else {
-            content.createEl('span', {
+            innerContent.createEl('span', {
                 cls: 'suggestion-title',
                 text: match.text,
             });

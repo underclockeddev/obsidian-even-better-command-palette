@@ -30,8 +30,8 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            min-width: 20px;
+            flex-shrink: 0;
+            width: 16px;
             margin-right: 8px;
             color: var(--text-faint);
 
@@ -51,6 +51,11 @@
                 width: 14px;
                 height: 14px;
             }
+        }
+
+        .suggestion-content-inner {
+            flex: 1;
+            min-width: 0;
         }
 
         .suggestion-flair {
