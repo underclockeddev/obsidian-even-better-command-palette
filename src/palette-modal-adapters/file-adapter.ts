@@ -53,7 +53,7 @@ export default class BetterCommandPaletteFileAdapter extends SuggestModalAdapter
 
                 // Add any unresolved links to the set
                 Object.keys(this.app.metadataCache.unresolvedLinks[filePath] || {}).forEach(
-                    (p) => this.unresolvedItems.add(new PaletteMatch(p, p)),
+                    (p) => this.unresolvedItems.add(new PaletteMatch(p, p, [], 'file')),
                 );
             });
 
@@ -154,7 +154,7 @@ export default class BetterCommandPaletteFileAdapter extends SuggestModalAdapter
 
         // We might not have a file if only a directory was specified
         if (file) {
-            this.getPrevItems().add(match || new PaletteMatch(file.path, file.path));
+            this.getPrevItems().add(match || new PaletteMatch(file.path, file.path, [], 'file'));
         }
 
         openFileWithEventKeys(this.app, this.plugin.settings, file, event);

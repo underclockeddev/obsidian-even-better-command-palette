@@ -25,10 +25,13 @@ export interface Comparable {
     value: () => string;
 }
 
+export type MatchCategory = 'command' | 'file' | 'tag';
+
 export interface Match extends Comparable {
     text: string,
     id: string,
     tags: string[],
+    category?: MatchCategory,
 }
 
 // Unsafe Interfaces

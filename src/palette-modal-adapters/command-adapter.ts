@@ -30,7 +30,7 @@ export default class BetterCommandPaletteCommandAdapter extends SuggestModalAdap
 
         this.allItems = this.app.commands.listCommands()
             .sort((a: Command, b: Command) => b.name.localeCompare(a.name))
-            .map((c: Command): Match => new PaletteMatch(c.id, c.name));
+            .map((c: Command): Match => new PaletteMatch(c.id, c.name, [], 'command'));
 
         const pinnedCommands = this.app.internalPlugins.getPluginById('command-palette').instance.options.pinned || [];
         this.pinnedItems = pinnedCommands.reduce(
@@ -39,7 +39,7 @@ export default class BetterCommandPaletteCommandAdapter extends SuggestModalAdap
 
                 // If a command was pinned and then the plugin removed we won't have a command here
                 if (command) {
-                    acc.push(new PaletteMatch(id, command.name));
+                    acc.push(new PaletteMatch(id, command.name, [], 'command'));
                 }
 
                 return acc;

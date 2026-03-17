@@ -10,6 +10,7 @@ export interface BetterCommandPalettePluginSettings {
     showPluginName: boolean,
     fileSearchPrefix: string,
     tagSearchPrefix: string,
+    commandSearchPrefix: string,
     commandSearchHotkey: string,
     fileSearchHotkey: string,
     tagSearchHotkey: string,
@@ -34,6 +35,7 @@ export const DEFAULT_SETTINGS: BetterCommandPalettePluginSettings = {
     showPluginName: true,
     fileSearchPrefix: '/',
     tagSearchPrefix: '#',
+    commandSearchPrefix: '$',
     commandSearchHotkey: 'p',
     fileSearchHotkey: 'o',
     tagSearchHotkey: 't',
@@ -164,6 +166,14 @@ export class BetterCommandPaletteSettingTab extends PluginSettingTab {
             .setDesc('The prefix used to tell the palette you want to search tags')
             .addText((t) => t.setValue(settings.tagSearchPrefix).onChange(async (val) => {
                 settings.tagSearchPrefix = val;
+                await this.plugin.saveSettings();
+            }));
+
+        new Setting(containerEl)
+            .setName('Command Search Prefix')
+            .setDesc('The prefix used to tell the palette you want to search only commands')
+            .addText((t) => t.setValue(settings.commandSearchPrefix).onChange(async (val) => {
+                settings.commandSearchPrefix = val;
                 await this.plugin.saveSettings();
             }));
 

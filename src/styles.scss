@@ -26,6 +26,33 @@
             }
         }
 
+        .suggestion-category-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            min-width: 20px;
+            margin-right: 8px;
+            color: var(--text-faint);
+
+            &.category-command {
+                color: var(--text-accent);
+            }
+
+            &.category-file {
+                color: var(--text-success);
+            }
+
+            &.category-tag {
+                color: var(--text-warning);
+            }
+
+            svg {
+                width: 14px;
+                height: 14px;
+            }
+        }
+
         .suggestion-flair {
             color: var(--text-faint);
             margin-right: 10px;
@@ -38,6 +65,9 @@
         }
 
         .suggestion-content {
+            display: flex;
+            align-items: center;
+
             svg {
                 margin: 0px 5px;
                 color: var(--text-muted);

@@ -1,4 +1,4 @@
-import { Match } from 'src/types/types';
+import { Match, MatchCategory } from 'src/types/types';
 
 export default class PaletteMatch implements Match {
     id: string;
@@ -7,10 +7,13 @@ export default class PaletteMatch implements Match {
 
     tags: string[];
 
-    constructor(id: string, text: string, tags: string[] = []) {
+    category?: MatchCategory;
+
+    constructor(id: string, text: string, tags: string[] = [], category?: MatchCategory) {
         this.id = id;
         this.text = text;
         this.tags = tags;
+        this.category = category;
     }
 
     value(): string {

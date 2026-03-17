@@ -19,7 +19,7 @@ self.onmessage = (msg: Message) => {
     } else if (mainQuery !== '') {
         results = fuzzySearch
             .go(mainQuery, items, { key: 'text' })
-            .map((r) => r.obj);
+            .map((r) => ({ ...r.obj }));
     }
 
     if (tagQueries.length) {

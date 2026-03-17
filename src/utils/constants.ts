@@ -38,4 +38,5 @@ export enum ActionType {
     Commands,
     Files,
     Tags,
+    Omnisearch,
 }

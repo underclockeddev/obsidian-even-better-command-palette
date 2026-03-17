@@ -142,11 +142,13 @@ export function createPaletteMatchesFromFilePath (
             filePath,
             filePath, // Concat our aliases and path to make searching easy
             tags,
+            'file',
         ),
         ...aliases.map((alias: string) => new PaletteMatch(
             `${alias}:${filePath}`,
             alias,
             tags,
+            'file',
         )),
     ];
 }

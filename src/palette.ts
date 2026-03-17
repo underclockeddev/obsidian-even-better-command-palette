@@ -8,6 +8,7 @@ import {
     BetterCommandPaletteCommandAdapter,
     BetterCommandPaletteFileAdapter,
     BetterCommandPaletteTagAdapter,
+    BetterCommandPaletteOmnisearchAdapter,
 } from 'src/palette-modal-adapters';
 import BetterCommandPalettePlugin from 'src/main';
 import { ActionType } from './utils/constants';
@@ -21,10 +22,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
     plugin: BetterCommandPalettePlugin;
 
     actionType: ActionType;
-
-    fileSearchPrefix: string;
-
-    tagSearchPrefix: string;
 
     suggestionsWorker: Worker;
 
@@ -46,6 +43,8 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
 
     tagAdapter: BetterCommandPaletteTagAdapter;
 
+    omnisearchAdapter: BetterCommandPaletteOmnisearchAdapter;
+
     currentAdapter: SuggestModalAdapter;
 
     suggestionLimit: number;
@@ -60,9 +59,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
     ) {
         super(app);
 
-        // General instance variables
-        this.fileSearchPrefix = plugin.settings.fileSearchPrefix;
-        this.tagSearchPrefix = plugin.settings.tagSearchPrefix;
         this.suggestionLimit = plugin.settings.suggestionLimit;
         this.initialInputValue = initialInputValue;
 
@@ -70,10 +66,9 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
 
         this.modalEl.addClass('better-command-palette');
 
-        // The only time the input will be empty will be when we are searching commands
-        this.setPlaceholder('Select a command');
+        this.setPlaceholder('Search commands, files, and tags...');
 
-        // Set up all of our different adapters
+        // Set up sub-adapters
         this.commandAdapter = new BetterCommandPaletteCommandAdapter(
             app,
             prevCommands,
@@ -93,6 +88,22 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
             this,
         );
 
+        // Set up the omnisearch adapter
+        this.omnisearchAdapter = new BetterCommandPaletteOmnisearchAdapter(
+            app,
+            new OrderedSet<Match>(),
+            plugin,
+            this,
+        );
+        this.omnisearchAdapter.setSubAdapters(
+            this.commandAdapter,
+            this.fileAdapter,
+            this.tagAdapter,
+        );
+
+        this.currentAdapter = this.omnisearchAdapter;
+        this.actionType = ActionType.Omnisearch;
+
         // Lets us do the suggestion fuzzy search in a different thread
         this.suggestionsWorker = suggestionsWorker;
         this.suggestionsWorker.onmessage = (msg: MessageEvent) => this.receivedSuggestions(msg);
@@ -102,8 +113,9 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
             cls: 'better-command-palette-title',
         });
 
-        // Update our action type before adding in our title element so the text is correct
+        // Initialize and mount the omnisearch adapter
         this.updateActionType();
+        this.currentAdapter.mount();
 
         // Add in the title element
         this.modalEl.insertBefore(this.modalTitleEl, this.modalEl.firstChild);
@@ -129,7 +141,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
 
     setScopes (plugin: BetterCommandPalettePlugin) {
         const closeModal = (event: KeyboardEvent) => {
-            // Have to cast this to access `value`
             const el = event.target as HTMLInputElement;
 
             if (plugin.settings.closeWithBackspace && el.value === '') {
@@ -148,26 +159,29 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
         });
 
         this.scope.register([createNewFileMod], 'Enter', (event: KeyboardEvent) => {
-            if (this.actionType === ActionType.Files) {
-                this.currentAdapter.onChooseSuggestion(null, event);
+            if (this.omnisearchAdapter.activeFilter === 'file') {
+                this.fileAdapter.onChooseSuggestion(null, event);
                 this.close(event);
             }
         });
 
         this.scope.register([createNewFileMod, openInNewTabMod], 'Enter', (event: KeyboardEvent) => {
-            if (this.actionType === ActionType.Files) {
-                this.currentAdapter.onChooseSuggestion(null, event);
+            if (this.omnisearchAdapter.activeFilter === 'file') {
+                this.fileAdapter.onChooseSuggestion(null, event);
                 this.close(event);
             }
         });
 
         this.scope.register([openInNewTabMod], 'Enter', (event: KeyboardEvent) => {
-            if (this.actionType === ActionType.Files && this.currentSuggestions.length) {
+            if (this.currentSuggestions.length) {
                 const promptResults = document.querySelector(".better-command-palette .prompt-results");
                 const selected = document.querySelector(".better-command-palette .is-selected");
                 const selectedIndex = Array.from(promptResults.children).indexOf(selected);
-                this.currentAdapter.onChooseSuggestion(this.currentSuggestions[selectedIndex], event);
-                this.close(event);
+                const match = this.currentSuggestions[selectedIndex];
+                if (match?.category === 'file') {
+                    this.fileAdapter.onChooseSuggestion(match, event);
+                    this.close(event);
+                }
             }
         });
 
@@ -182,10 +196,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
     onOpen () {
         super.onOpen();
 
-        // Add the initial value to the input
-        // TODO: Figure out if there is a way to bypass the first seach
-        // result flickering before this is set
-        // As far as I can tell onOpen resets the value of the input so this is the first place
         if (this.initialInputValue) {
             this.setQuery(this.initialInputValue);
         }
@@ -197,7 +207,8 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
             prefix = this.plugin.settings.fileSearchPrefix;
         } else if (actionType === ActionType.Tags) {
             prefix = this.plugin.settings.tagSearchPrefix;
-
+        } else if (actionType === ActionType.Commands) {
+            prefix = this.plugin.settings.commandSearchPrefix;
         }
         const currentQuery: string = this.inputEl.value;
         const cleanQuery = this.currentAdapter.cleanQuery(currentQuery);
@@ -220,38 +231,22 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
     }
 
     updateActionType (): boolean {
-        const text: string = this.inputEl.value;
-        let nextAdapter;
-        let type;
+        // The omnisearch adapter handles its own filter detection
+        const query = this.inputEl.value;
+        const filterChanged = this.omnisearchAdapter.updateFilter(query);
 
-        if (text.startsWith(this.fileSearchPrefix)) {
-            type = ActionType.Files;
-            nextAdapter = this.fileAdapter;
-            this.modalEl.setAttribute("palette-mode", "files");
-        } else if (text.startsWith(this.tagSearchPrefix)) {
-            type = ActionType.Tags;
-            nextAdapter = this.tagAdapter;
-            this.modalEl.setAttribute("palette-mode", "tags");
-        } else {
-            type = ActionType.Commands;
-            nextAdapter = this.commandAdapter;
-            this.modalEl.setAttribute("palette-mode", "commands");
-        }
+        const filter = this.omnisearchAdapter.activeFilter;
+        this.modalEl.setAttribute("palette-mode", filter || "omnisearch");
 
-        if (type !== this.actionType) {
-            this.currentAdapter?.unmount();
-            this.currentAdapter = nextAdapter;
-            this.currentAdapter.mount();
+        if (!this.currentAdapter) {
+            this.currentAdapter = this.omnisearchAdapter;
         }
 
         if (!this.currentAdapter.initialized) {
             this.currentAdapter.initialize();
         }
 
-        const wasUpdated = type !== this.actionType;
-        this.actionType = type;
-
-        if (wasUpdated) {
+        if (filterChanged) {
             this.updateEmptyStateText();
             this.updateTitleText();
             this.updateInstructions();
@@ -260,7 +255,7 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
                 .slice(0, this.suggestionLimit);
         }
 
-        return wasUpdated;
+        return filterChanged;
     }
 
     updateTitleText () {
@@ -308,7 +303,7 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
             }
         }
 
-        const matches = results.map((r: Match) => new PaletteMatch(r.id, r.text, r.tags));
+        const matches = results.map((r: Match) => new PaletteMatch(r.id, r.text, r.tags, r.category));
 
         // Sort the suggestions so that previously searched items are first
         const prevItems = this.currentAdapter.getPrevItems();
@@ -328,7 +323,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
     }
 
     getSuggestions (query: string): Match[] {
-        // The action type might have changed
         this.updateActionType();
 
         const getNewSuggestions = query !== this.lastQuery;
@@ -336,7 +330,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
         const fixedQuery = this.currentAdapter.cleanQuery(query.trim());
 
         if (getNewSuggestions) {
-            // Load suggestions in another thread
             this.getSuggestionsAsync(fixedQuery);
         }
 
@@ -348,7 +341,6 @@ class BetterCommandPaletteModal extends SuggestModal<Match> implements UnsafeSug
 
         this.updateHiddenItemCountHeader(hiddenItemCount);
 
-        // For now return what we currently have. We'll populate results later if we need to
         return this.showHiddenItems ? this.currentSuggestions : visibleItems;
     }
 

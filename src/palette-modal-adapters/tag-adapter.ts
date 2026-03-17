@@ -30,7 +30,7 @@ export default class BetterCommandPaletteTagAdapter extends SuggestModalAdapter 
         this.emptyStateText = 'No matching tags.';
 
         this.allItems = Object.entries(this.app.metadataCache.getTags())
-            .map(([tag, count]) => new PaletteMatch(tag, tag, [count]));
+            .map(([tag, count]) => new PaletteMatch(tag, tag, [count], 'tag'));
     }
 
     mount(): void {
@@ -54,7 +54,7 @@ export default class BetterCommandPaletteTagAdapter extends SuggestModalAdapter 
 
     renderSuggestion(match: Match, content: HTMLElement, aux: HTMLElement): void {
         content.createEl('span', {
-            cls: 'suggestion-content',
+            cls: 'suggestion-title',
             text: match.text,
         });
 
